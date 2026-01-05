@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AIResponse\BrandVoiceController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\VerifyEmailController;
+use App\Http\Controllers\Api\V1\Listing\ListingController;
 use App\Http\Controllers\Api\V1\Location\LocationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\ReportScheduleController;
@@ -59,6 +60,21 @@ Route::prefix('v1')->group(function () {
         Route::get('/tenants/{tenant}/locations/{location}', [LocationController::class, 'show'])->name('tenants.locations.show');
         Route::put('/tenants/{tenant}/locations/{location}', [LocationController::class, 'update'])->name('tenants.locations.update');
         Route::delete('/tenants/{tenant}/locations/{location}', [LocationController::class, 'destroy'])->name('tenants.locations.destroy');
+
+        // Listings - Tenant Level
+        Route::get('/tenants/{tenant}/listings', [ListingController::class, 'index'])->name('tenants.listings.index');
+        Route::get('/tenants/{tenant}/listings/stats', [ListingController::class, 'stats'])->name('tenants.listings.stats');
+        Route::get('/tenants/{tenant}/listings/platforms', [ListingController::class, 'platforms'])->name('tenants.listings.platforms');
+        Route::get('/tenants/{tenant}/listings/{listing}', [ListingController::class, 'show'])->name('tenants.listings.show');
+        Route::post('/tenants/{tenant}/listings/credentials', [ListingController::class, 'storeCredential'])->name('tenants.listings.credentials.store');
+        Route::delete('/tenants/{tenant}/listings/credentials/{platform}', [ListingController::class, 'destroyCredential'])->name('tenants.listings.credentials.destroy');
+
+        // Listings - Location Level
+        Route::get('/tenants/{tenant}/locations/{location}/listings/stats', [ListingController::class, 'locationStats'])->name('tenants.locations.listings.stats');
+        Route::post('/tenants/{tenant}/locations/{location}/listings/sync/{platform}', [ListingController::class, 'sync'])->name('tenants.locations.listings.sync');
+        Route::post('/tenants/{tenant}/locations/{location}/listings/sync', [ListingController::class, 'syncAll'])->name('tenants.locations.listings.sync-all');
+        Route::post('/tenants/{tenant}/locations/{location}/listings/publish/{platform}', [ListingController::class, 'publish'])->name('tenants.locations.listings.publish');
+        Route::post('/tenants/{tenant}/locations/{location}/listings/publish', [ListingController::class, 'publishAll'])->name('tenants.locations.listings.publish-all');
 
         // Reviews
         Route::get('/tenants/{tenant}/reviews', [ReviewController::class, 'index'])->name('tenants.reviews.index');

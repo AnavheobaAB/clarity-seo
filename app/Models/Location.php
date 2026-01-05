@@ -57,6 +57,11 @@ class Location extends Model
         return $this->hasMany(Review::class);
     }
 
+    public function listings(): HasMany
+    {
+        return $this->hasMany(Listing::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
