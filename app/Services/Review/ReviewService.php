@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Review;
 
 use App\Models\Location;
+use App\Models\PlatformCredential;
 use App\Models\Review;
 use App\Models\ReviewResponse;
 use App\Models\Tenant;
@@ -72,7 +73,7 @@ class ReviewService
                 // If review has AI sentiment analysis, use it
                 // Otherwise, fall back to rating-based sentiment
                 $query->where(function ($q) use ($sentimentValue) {
-                    $q->whereHas('sentiment', fn ($sub) => $sub->where('sentiment', $sentimentValue))
+                    $q->whereHas('sentiment', fn($sub) => $sub->where('sentiment', $sentimentValue))
                         ->orWhere(function ($fallback) use ($sentimentValue) {
                             $fallback->whereDoesntHave('sentiment');
                             if ($sentimentValue === 'negative') {
@@ -87,7 +88,7 @@ class ReviewService
 
         // Filter by minimum sentiment score
         if (isset($filters['min_sentiment_score'])) {
-            $query->whereHas('sentiment', fn ($q) => $q->where('sentiment_score', '>=', $filters['min_sentiment_score']));
+            $query->whereHas('sentiment', fn($q) => $q->where('sentiment_score', '>=', $filters['min_sentiment_score']));
         }
 
         if (isset($filters['search'])) {
@@ -178,7 +179,24 @@ class ReviewService
 
     public function publishResponse(ReviewResponse $response): ReviewResponse
     {
-        $response->publish();
+        $review = $response->review;
+        $location = $review->location;
+
+        // Handle Facebook responses
+        if ($review->platform === 'facebook') {
+            $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+            if ($credential && $credential->isValid()) {
+                $success = app(FacebookReviewService::class)->publishResponse($response, $credential);
+                if (!$success) {
+                    throw new \Exception('Failed to publish response to Facebook');
+                }
+            }
+        }
+
+        // For other platforms or if not published to platform, just mark as published locally
+        if (!$response->isPublished()) {
+            $response->publish();
+        }
 
         return $response->fresh();
     }
@@ -194,6 +212,12 @@ class ReviewService
             $this->syncGoogleReviews($location);
         }
 
+        // Sync Facebook reviews if credentials exist
+        $facebookCredential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+        if ($facebookCredential && $facebookCredential->isValid()) {
+            app(FacebookReviewService::class)->syncFacebookReviews($location, $facebookCredential);
+        }
+
         // TODO: Add Yelp sync when API key is configured
         // if ($location->hasYelpBusinessId()) {
         //     $this->syncYelpReviews($location);
@@ -204,7 +228,7 @@ class ReviewService
 
     protected function syncGoogleReviews(Location $location): int
     {
-        if (! $location->hasGooglePlaceId()) {
+        if (!$location->hasGooglePlaceId()) {
             return 0;
         }
 
@@ -218,13 +242,13 @@ class ReviewService
 
         $placeId = $location->google_place_id;
 
-        $response = Http::get(config('google.places.base_url').'/details/json', [
+        $response = Http::get(config('google.places.base_url') . '/details/json', [
             'place_id' => $placeId,
             'fields' => 'reviews',
             'key' => $apiKey,
         ]);
 
-        if (! $response->successful()) {
+        if (!$response->successful()) {
             \Log::error('Google Places API error', [
                 'location_id' => $location->id,
                 'place_id' => $placeId,
@@ -239,7 +263,7 @@ class ReviewService
         $syncedCount = 0;
 
         foreach ($reviews as $reviewData) {
-            if (! isset($reviewData['rating'])) {
+            if (!isset($reviewData['rating'])) {
                 continue;
             }
 
@@ -247,7 +271,7 @@ class ReviewService
                 [
                     'location_id' => $location->id,
                     'platform' => 'google',
-                    'external_id' => md5(($reviewData['author_name'] ?? '').($reviewData['time'] ?? '')),
+                    'external_id' => md5(($reviewData['author_name'] ?? '') . ($reviewData['time'] ?? '')),
                 ],
                 [
                     'author_name' => $reviewData['author_name'] ?? null,

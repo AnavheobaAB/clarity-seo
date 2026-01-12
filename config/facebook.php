@@ -29,6 +29,8 @@ return [
         'pages_read_engagement',
         'pages_manage_metadata',
         'pages_manage_posts',
+        'pages_manage_engagement',  // Required for responding to reviews
         'business_management',
     ],
+
 ];
