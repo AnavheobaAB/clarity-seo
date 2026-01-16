@@ -32,7 +32,6 @@ class Location extends Model
         'status',
         'google_place_id',
         'yelp_business_id',
-        'facebook_page_id',
         'reviews_synced_at',
     ];
 
@@ -70,16 +69,11 @@ class Location extends Model
 
     public function hasGooglePlaceId(): bool
     {
-        return !empty($this->google_place_id);
+        return ! empty($this->google_place_id);
     }
 
     public function hasYelpBusinessId(): bool
     {
-        return !empty($this->yelp_business_id);
-    }
-
-    public function hasFacebookPageId(): bool
-    {
-        return !empty($this->facebook_page_id);
+        return ! empty($this->yelp_business_id);
     }
 }

@@ -21,7 +21,6 @@ class PlatformCredential extends Model
     protected $fillable = [
         'tenant_id',
         'platform',
-        'external_id',
         'access_token',
         'refresh_token',
         'token_type',
@@ -54,7 +53,7 @@ class PlatformCredential extends Model
 
     public function isExpired(): bool
     {
-        if (!$this->expires_at) {
+        if (! $this->expires_at) {
             return false;
         }
 
@@ -63,13 +62,12 @@ class PlatformCredential extends Model
 
     public function isValid(): bool
     {
-        return $this->is_active && !$this->isExpired();
+        return $this->is_active && ! $this->isExpired();
     }
 
     public function getPageId(): ?string
     {
-        // Use external_id first (new way), fallback to metadata (old way)
-        return $this->external_id ?? $this->metadata['page_id'] ?? null;
+        return $this->metadata['page_id'] ?? null;
     }
 
     public function getAccountId(): ?string
