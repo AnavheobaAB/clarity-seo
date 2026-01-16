@@ -58,8 +58,7 @@ class FacebookReviewTest extends TestCase
         ]);
     }
 
-    /** @test */
-    public function it_can_sync_facebook_reviews()
+    public function test_it_can_sync_facebook_reviews()
     {
         // Mock Facebook API response
         Http::fake([
@@ -106,8 +105,7 @@ class FacebookReviewTest extends TestCase
         $this->assertEquals('Great service!', $firstReview->content);
     }
 
-    /** @test */
-    public function it_handles_duplicate_reviews()
+    public function test_it_handles_duplicate_reviews()
     {
         // Create existing review
         Review::create([
@@ -145,8 +143,7 @@ class FacebookReviewTest extends TestCase
         $this->assertEquals(1, Review::where('location_id', $this->location->id)->count());
     }
 
-    /** @test */
-    public function it_can_publish_response_to_facebook()
+    public function test_it_can_publish_response_to_facebook()
     {
         // Create review
         $review = Review::create([
@@ -184,8 +181,7 @@ class FacebookReviewTest extends TestCase
         $this->assertTrue($response->fresh()->isPublished());
     }
 
-    /** @test */
-    public function it_handles_api_errors_gracefully()
+    public function test_it_handles_api_errors_gracefully()
     {
         // Mock API error
         Http::fake([
@@ -203,8 +199,7 @@ class FacebookReviewTest extends TestCase
         $this->assertEquals(0, $count);
     }
 
-    /** @test */
-    public function it_requires_page_id_to_sync()
+    public function test_it_requires_page_id_to_sync()
     {
         // Remove page_id from metadata
         $this->credential->update(['metadata' => []]);
@@ -215,8 +210,7 @@ class FacebookReviewTest extends TestCase
         $this->assertEquals(0, $count);
     }
 
-    /** @test */
-    public function it_can_check_review_access_permissions()
+    public function test_it_can_check_review_access_permissions()
     {
         $service = new FacebookReviewService;
 

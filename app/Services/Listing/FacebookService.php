@@ -49,6 +49,7 @@ class FacebookService
                 Log::error('Facebook API error: Failed to get pages', [
                     'status' => $response->status(),
                     'error' => $response->json('error'),
+                    'response_body' => $response->body(),
                 ]);
 
                 return null;
@@ -101,6 +102,7 @@ class FacebookService
                     'page_id' => $pageId,
                     'status' => $response->status(),
                     'error' => $response->json('error'),
+                    'response_body' => $response->body(),
                 ]);
 
                 return null;

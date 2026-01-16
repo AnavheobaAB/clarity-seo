@@ -40,6 +40,7 @@ class FacebookReviewService
     public function syncFacebookReviews(Location $location, PlatformCredential $credential): int
     {
         $pageId = $credential->getPageId();
+        $pageAccessToken = $credential->metadata['page_access_token'] ?? $credential->access_token;
 
         if (!$pageId) {
             Log::error('No Facebook page ID configured', ['tenant_id' => $credential->tenant_id]);
@@ -48,7 +49,7 @@ class FacebookReviewService
         }
 
         // Get page ratings/reviews
-        $ratings = $this->getPageRatings($pageId, $credential->access_token);
+        $ratings = $this->getPageRatings($pageId, $pageAccessToken);
 
         if (!$ratings) {
             Log::warning('No Facebook ratings found', [
