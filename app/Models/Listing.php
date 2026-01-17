@@ -18,6 +18,8 @@ class Listing extends Model
 
     public const PLATFORM_BING = 'bing';
 
+    public const PLATFORM_GOOGLE_PLAY = 'google_play';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_ACTIVE = 'active';
@@ -86,6 +88,11 @@ class Listing extends Model
     public function isBing(): bool
     {
         return $this->platform === self::PLATFORM_BING;
+    }
+
+    public function isGooglePlay(): bool
+    {
+        return $this->platform === self::PLATFORM_GOOGLE_PLAY;
     }
 
     public function isSynced(): bool

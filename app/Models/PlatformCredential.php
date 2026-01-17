@@ -14,6 +14,8 @@ class PlatformCredential extends Model
 
     public const PLATFORM_FACEBOOK = 'facebook';
 
+    public const PLATFORM_GOOGLE_PLAY = 'google_play';
+
     public const PLATFORM_GOOGLE = 'google';
 
     public const PLATFORM_BING = 'bing';

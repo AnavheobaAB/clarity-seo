@@ -183,7 +183,7 @@ class ReviewService
         $location = $review->location;
 
         // Handle Facebook responses
-        if ($review->platform === 'facebook') {
+        if ($review->platform === PlatformCredential::PLATFORM_FACEBOOK) {
             $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
             if ($credential && $credential->isValid()) {
                 $success = app(FacebookReviewService::class)->publishResponse($response, $credential);
@@ -191,6 +191,16 @@ class ReviewService
                     throw new \Exception('Failed to publish response to Facebook');
                 }
             }
+        }
+
+        // Handle Google Play Store responses
+        if ($review->platform === PlatformCredential::PLATFORM_GOOGLE_PLAY) {
+            $success = app(GooglePlayStoreService::class)->replyToReview($review, $response->content);
+            if (!$success) {
+                throw new \Exception('Failed to publish response to Google Play Store');
+            }
+            // The service updates the response status and platform_synced, so we reload it
+            return $response->fresh();
         }
 
         // For other platforms or if not published to platform, just mark as published locally
@@ -223,6 +233,11 @@ class ReviewService
             if ($facebookCredential && $facebookCredential->isValid()) {
                 app(FacebookReviewService::class)->syncFacebookReviews($location, $facebookCredential);
             }
+        }
+
+        // Sync Google Play Store reviews
+        if ($location->hasGooglePlayPackageName()) {
+            app(GooglePlayStoreService::class)->syncReviews($location);
         }
 
         // TODO: Add Yelp sync when API key is configured

@@ -25,6 +25,7 @@ class ReviewResponse extends Model
         'approved_at',
         'rejection_reason',
         'published_at',
+        'platform_synced',
     ];
 
     /** @return array<string, string> */
@@ -32,6 +33,7 @@ class ReviewResponse extends Model
     {
         return [
             'ai_generated' => 'boolean',
+            'platform_synced' => 'boolean',
             'approved_at' => 'datetime',
             'published_at' => 'datetime',
         ];

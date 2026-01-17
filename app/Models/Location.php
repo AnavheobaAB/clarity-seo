@@ -33,6 +33,7 @@ class Location extends Model
         'google_place_id',
         'yelp_business_id',
         'facebook_page_id',
+        'google_play_package_name',
         'reviews_synced_at',
     ];
 
@@ -81,5 +82,10 @@ class Location extends Model
     public function hasFacebookPageId(): bool
     {
         return !empty($this->facebook_page_id);
+    }
+
+    public function hasGooglePlayPackageName(): bool
+    {
+        return !empty($this->google_play_package_name);
     }
 }

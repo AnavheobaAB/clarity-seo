@@ -26,3 +26,4 @@ MODULES.md
 .claude/
 CLAUDE.md
 docs/platforms/
+/storage/app/private/*.json
