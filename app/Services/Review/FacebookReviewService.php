@@ -138,21 +138,22 @@ class FacebookReviewService
         }
 
         try {
-            // Publish response to Facebook
-            $url = $this->apiUrl("{$pageId}/ratings/{$ratingId}");
+            // Facebook API endpoint: POST /{rating-id}/comments with message parameter
+            // NOT /{page-id}/ratings/{rating-id} - that endpoint doesn't exist!
+            $url = $this->apiUrl("{$ratingId}/comments");
 
             $httpResponse = Http::post($url, [
                 'access_token' => $pageAccessToken,
-                'comment' => $response->content,
+                'message' => $response->content,  // Use 'message' not 'comment'
             ]);
 
             if (!$httpResponse->successful()) {
                 Log::error('Facebook API error: Failed to publish review response', [
-                    'page_id' => $pageId,
                     'rating_id' => $ratingId,
                     'review_id' => $review->id,
                     'status' => $httpResponse->status(),
                     'error' => $httpResponse->json('error'),
+                    'url' => $url,
                 ]);
 
                 return false;
@@ -164,7 +165,7 @@ class FacebookReviewService
             Log::info('Facebook review response published', [
                 'review_id' => $review->id,
                 'response_id' => $response->id,
-                'page_id' => $pageId,
+                'rating_id' => $ratingId,
             ]);
 
             return true;
