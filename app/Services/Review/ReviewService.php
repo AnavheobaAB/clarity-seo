@@ -246,10 +246,17 @@ class ReviewService
         $response->delete();
     }
 
-    public function syncReviewsForLocation(Location $location): void
+    public function syncReviewsForLocation(Location $location): array
     {
+        $counts = [
+            'google' => 0,
+            'facebook' => 0,
+            'google_play' => 0,
+            'youtube' => 0,
+        ];
+
         if ($location->hasGooglePlaceId()) {
-            $this->syncGoogleReviews($location);
+            $counts['google'] = $this->syncGoogleReviews($location);
         }
 
         // Sync Facebook reviews if location has Facebook page ID
@@ -261,13 +268,13 @@ class ReviewService
                 ->first();
 
             if ($facebookCredential && $facebookCredential->isValid()) {
-                app(FacebookReviewService::class)->syncFacebookReviews($location, $facebookCredential);
+                $counts['facebook'] = app(FacebookReviewService::class)->syncFacebookReviews($location, $facebookCredential);
             }
         }
 
         // Sync Google Play Store reviews
         if ($location->hasGooglePlayPackageName()) {
-            app(GooglePlayStoreService::class)->syncReviews($location);
+            $counts['google_play'] = app(GooglePlayStoreService::class)->syncReviews($location);
         }
 
         // Sync YouTube reviews
@@ -278,7 +285,7 @@ class ReviewService
                 ->first();
 
             if ($youtubeCredential && $youtubeCredential->isValid()) {
-                app(YouTubeReviewService::class)->syncReviews($location, $youtubeCredential);
+                $counts['youtube'] = app(YouTubeReviewService::class)->syncReviews($location, $youtubeCredential);
             }
         }
 
@@ -288,6 +295,8 @@ class ReviewService
         // }
 
         $location->update(['reviews_synced_at' => now()]);
+
+        return $counts;
     }
 
     protected function syncGoogleReviews(Location $location): int

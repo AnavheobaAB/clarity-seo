@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AIResponse\BrandVoiceController;
 use App\Http\Controllers\Api\V1\Auth\LoginController;
 use App\Http\Controllers\Api\V1\Auth\RegisterController;
 use App\Http\Controllers\Api\V1\Auth\VerifyEmailController;
+use App\Http\Controllers\Api\V1\Listing\FacebookConnectController;
 use App\Http\Controllers\Api\V1\Listing\ListingController;
 use App\Http\Controllers\Api\V1\Location\LocationController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -36,11 +37,18 @@ Route::prefix('v1')->group(function () {
             ->name('verification.verify');
     });
 
+    // Facebook Connect Routes (Public for callback, or protected for connect)
+    Route::get('/facebook/callback', [FacebookConnectController::class, 'callback'])->name('api.v1.facebook.callback');
+
+
     // Authenticated routes
     Route::middleware('auth:sanctum')->group(function () {
         // Tenants
         Route::apiResource('tenants', TenantController::class);
         Route::post('/tenants/{tenant}/switch', [TenantController::class, 'switch'])->name('tenants.switch');
+        
+        // Facebook Connect
+        Route::get('/tenants/{tenant}/facebook/connect', [FacebookConnectController::class, 'connect'])->name('api.v1.facebook.connect');
 
         // Tenant Members
         Route::get('/tenants/{tenant}/members', [MemberController::class, 'index'])->name('tenants.members.index');

@@ -30,6 +30,7 @@ return [
         'pages_manage_metadata',
         'pages_manage_posts',
         'pages_manage_engagement',  // Required for responding to reviews
+        'pages_read_user_content',  // Required for reading reviews
         'business_management',
     ],
 

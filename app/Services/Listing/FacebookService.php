@@ -18,10 +18,16 @@ class FacebookService
 
     protected string $graphVersion;
 
+    protected string $appId;
+
+    protected string $appSecret;
+
     public function __construct()
     {
         $this->baseUrl = config('facebook.base_url');
         $this->graphVersion = config('facebook.graph_version');
+        $this->appId = config('facebook.app_id');
+        $this->appSecret = config('facebook.app_secret');
     }
 
     /**
@@ -30,6 +36,55 @@ class FacebookService
     protected function apiUrl(string $endpoint): string
     {
         return "{$this->baseUrl}/{$this->graphVersion}/{$endpoint}";
+    }
+
+    /**
+     * Get the Facebook Login URL.
+     */
+    public function getLoginUrl(string $redirectUri, string $state): string
+    {
+        $permissions = config('facebook.default_permissions', []);
+        $scope = implode(',', $permissions);
+
+        $params = [
+            'client_id' => $this->appId,
+            'redirect_uri' => $redirectUri,
+            'state' => $state,
+            'scope' => $scope,
+            'response_type' => 'code',
+        ];
+
+        return 'https://www.facebook.com/' . $this->graphVersion . '/dialog/oauth?' . http_build_query($params);
+    }
+
+    /**
+     * Exchange authorization code for access token.
+     */
+    public function getAccessTokenFromCode(string $code, string $redirectUri): ?string
+    {
+        try {
+            $response = Http::get($this->apiUrl('oauth/access_token'), [
+                'client_id' => $this->appId,
+                'client_secret' => $this->appSecret,
+                'redirect_uri' => $redirectUri,
+                'code' => $code,
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Facebook API error: Failed to get access token', [
+                    'status' => $response->status(),
+                    'error' => $response->json('error'),
+                ]);
+
+                return null;
+            }
+
+            return $response->json('access_token');
+        } catch (ConnectionException $e) {
+            Log::error('Facebook connection error', ['error' => $e->getMessage()]);
+
+            return null;
+        }
     }
 
     /**

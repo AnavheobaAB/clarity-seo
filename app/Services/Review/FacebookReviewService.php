@@ -69,18 +69,30 @@ class FacebookReviewService
 
             // Facebook ratings can have reviews
             $content = $rating['review_text'] ?? $rating['recommendation_type'] ?? null;
-            $authorName = $rating['reviewer']['name'] ?? 'Anonymous';
+            $reviewer = $rating['reviewer'] ?? null;
+            $authorName = $reviewer['name'] ?? 'Anonymous';
+            
+            $authorImage = null;
+            if ($reviewer && isset($reviewer['picture']['data']['url'])) {
+                $authorImage = $reviewer['picture']['data']['url'];
+            }
+
             $createdTime = $rating['created_time'] ?? now()->toIso8601String();
+            
+            $openGraphStoryId = null;
+            if (isset($rating['open_graph_story']['id'])) {
+                $openGraphStoryId = $rating['open_graph_story']['id'];
+            }
 
             Review::updateOrCreate(
                 [
                     'location_id' => $location->id,
                     'platform' => 'facebook',
-                    'external_id' => $rating['open_graph_story']['id'] ?? md5($authorName . $createdTime),
+                    'external_id' => $openGraphStoryId ?? md5($authorName . $createdTime),
                 ],
                 [
                     'author_name' => $authorName,
-                    'author_image' => $rating['reviewer']['picture']['data']['url'] ?? null,
+                    'author_image' => $authorImage,
                     'rating' => $rating['rating'],
                     'content' => $content,
                     'published_at' => \Carbon\Carbon::parse($createdTime),
@@ -192,7 +204,12 @@ class FacebookReviewService
     protected function getPageRatings(string $pageId, string $accessToken): ?array
     {
         try {
-            $response = Http::get($this->apiUrl("{$pageId}/ratings"), [
+            $url = $this->apiUrl("{$pageId}/ratings");
+            
+            // Log the request for debugging
+            Log::info('Fetching Facebook ratings', ['url' => $url, 'page_id' => $pageId]);
+
+            $response = Http::get($url, [
                 'access_token' => $accessToken,
                 'fields' => implode(',', [
                     'rating',
@@ -215,7 +232,15 @@ class FacebookReviewService
                 return null;
             }
 
-            return $response->json('data', []);
+            $data = $response->json('data', []);
+            
+            // Log the count and first item for debugging
+            Log::info('Facebook ratings fetched', [
+                'count' => count($data), 
+                'first_item_keys' => !empty($data) ? array_keys($data[0]) : []
+            ]);
+
+            return $data;
         } catch (ConnectionException $e) {
             Log::error('Facebook connection error', [
                 'error' => $e->getMessage(),
