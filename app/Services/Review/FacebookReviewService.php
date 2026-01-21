@@ -125,11 +125,13 @@ class FacebookReviewService
             return false;
         }
 
-        // Get the rating ID from review metadata (use the main rating ID, not open_graph_story ID)
-        $ratingId = $review->metadata['id'] ?? $review->metadata['open_graph_story']['id'] ?? null;
+        // Get the open_graph_story ID from review metadata
+        // According to Facebook docs: https://stackoverflow.com/a/41683980
+        // To reply to a review, POST to /{open_graph_story_id}/comments
+        $openGraphStoryId = $review->metadata['open_graph_story']['id'] ?? null;
 
-        if (!$ratingId) {
-            Log::error('No rating ID found in review metadata', [
+        if (!$openGraphStoryId) {
+            Log::error('No open_graph_story ID found in review metadata', [
                 'review_id' => $review->id,
                 'external_id' => $review->external_id,
                 'metadata_keys' => array_keys($review->metadata ?? []),
@@ -139,20 +141,19 @@ class FacebookReviewService
         }
 
         try {
-            // Facebook API v2.4+: POST /{page-id}/ratings with rating_id and comment parameters
-            // https://developers.facebook.com/docs/graph-api/reference/page/ratings/
-            $url = $this->apiUrl("{$pageId}/ratings");
+            // Facebook API: POST /{open_graph_story_id}/comments
+            // https://developers.facebook.com/docs/graph-api/reference/v24.0/object/comments
+            $url = $this->apiUrl("{$openGraphStoryId}/comments");
 
             $httpResponse = Http::post($url, [
                 'access_token' => $pageAccessToken,
-                'rating_id' => $ratingId,
-                'comment' => $response->content,
+                'message' => $response->content,
             ]);
 
             if (!$httpResponse->successful()) {
                 Log::error('Facebook API error: Failed to publish review response', [
                     'page_id' => $pageId,
-                    'rating_id' => $ratingId,
+                    'open_graph_story_id' => $openGraphStoryId,
                     'review_id' => $review->id,
                     'status' => $httpResponse->status(),
                     'error' => $httpResponse->json('error'),
@@ -169,7 +170,7 @@ class FacebookReviewService
                 'review_id' => $review->id,
                 'response_id' => $response->id,
                 'page_id' => $pageId,
-                'rating_id' => $ratingId,
+                'open_graph_story_id' => $openGraphStoryId,
             ]);
 
             return true;
