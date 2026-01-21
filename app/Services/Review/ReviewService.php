@@ -184,12 +184,30 @@ class ReviewService
 
         // Handle Facebook responses
         if ($review->platform === PlatformCredential::PLATFORM_FACEBOOK) {
-            $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+            // Get the correct credential for this review's Facebook page
+            $credential = null;
+
+            // First, try to get from location's facebook_page_id
+            if ($location->hasFacebookPageId()) {
+                $credential = PlatformCredential::where('tenant_id', $location->tenant_id)
+                    ->where('platform', PlatformCredential::PLATFORM_FACEBOOK)
+                    ->where('external_id', $location->facebook_page_id)
+                    ->where('is_active', true)
+                    ->first();
+            }
+
+            // Fallback: Use any active Facebook credential for this tenant
+            if (!$credential) {
+                $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+            }
+
             if ($credential && $credential->isValid()) {
                 $success = app(FacebookReviewService::class)->publishResponse($response, $credential);
                 if (!$success) {
                     throw new \Exception('Failed to publish response to Facebook');
                 }
+            } else {
+                throw new \Exception('No valid Facebook credentials found for this location');
             }
         }
 

@@ -15,6 +15,9 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "@savingsatoshi/secp256k1js": "^1.0.1"
+        "@savingsatoshi/secp256k1js": "^1.0.1",
+        "google-play-scraper": "^10.1.2",
+        "googleapis": "^170.1.0",
+        "puppeteer": "^24.35.0"
     }
 }
