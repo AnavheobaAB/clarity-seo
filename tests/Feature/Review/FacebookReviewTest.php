@@ -167,9 +167,9 @@ class FacebookReviewTest extends TestCase
             'status' => 'approved',
         ]);
 
-        // Mock Facebook API - correct endpoint is /{rating-id}/comments
+        // Mock Facebook API - correct endpoint is POST /{page-id}/ratings
         Http::fake([
-            '*/rating_id_123/comments*' => Http::response(['success' => true], 200),
+            '*/test_page_id/ratings*' => Http::response(['success' => true], 200),
         ]);
 
         $service = new FacebookReviewService;

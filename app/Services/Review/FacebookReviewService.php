@@ -125,30 +125,33 @@ class FacebookReviewService
             return false;
         }
 
-        // Get the rating ID from review metadata
-        $ratingId = $review->metadata['open_graph_story']['id'] ?? null;
+        // Get the rating ID from review metadata (use the main rating ID, not open_graph_story ID)
+        $ratingId = $review->metadata['id'] ?? $review->metadata['open_graph_story']['id'] ?? null;
 
         if (!$ratingId) {
             Log::error('No rating ID found in review metadata', [
                 'review_id' => $review->id,
                 'external_id' => $review->external_id,
+                'metadata_keys' => array_keys($review->metadata ?? []),
             ]);
 
             return false;
         }
 
         try {
-            // Facebook API endpoint: POST /{rating-id}/comments with message parameter
-            // NOT /{page-id}/ratings/{rating-id} - that endpoint doesn't exist!
-            $url = $this->apiUrl("{$ratingId}/comments");
+            // Facebook API v2.4+: POST /{page-id}/ratings with rating_id and comment parameters
+            // https://developers.facebook.com/docs/graph-api/reference/page/ratings/
+            $url = $this->apiUrl("{$pageId}/ratings");
 
             $httpResponse = Http::post($url, [
                 'access_token' => $pageAccessToken,
-                'message' => $response->content,  // Use 'message' not 'comment'
+                'rating_id' => $ratingId,
+                'comment' => $response->content,
             ]);
 
             if (!$httpResponse->successful()) {
                 Log::error('Facebook API error: Failed to publish review response', [
+                    'page_id' => $pageId,
                     'rating_id' => $ratingId,
                     'review_id' => $review->id,
                     'status' => $httpResponse->status(),
@@ -165,6 +168,7 @@ class FacebookReviewService
             Log::info('Facebook review response published', [
                 'review_id' => $review->id,
                 'response_id' => $response->id,
+                'page_id' => $pageId,
                 'rating_id' => $ratingId,
             ]);
 

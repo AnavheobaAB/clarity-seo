@@ -63,9 +63,9 @@ test('it publishes response to correct Facebook page when location has facebook_
         'status' => 'approved',
     ]);
 
-    // Mock Facebook API - use correct endpoint
+    // Mock Facebook API - POST /{page-id}/ratings
     Http::fake([
-        '*/rating_123/comments*' => Http::response(['success' => true], 200),
+        '*/page_123/ratings*' => Http::response(['success' => true], 200),
     ]);
 
     // Publish response
@@ -75,7 +75,7 @@ test('it publishes response to correct Facebook page when location has facebook_
 
     // Verify correct API was called
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), 'rating_123/comments');
+        return str_contains($request->url(), 'page_123/ratings');
     });
 });
 
@@ -130,8 +130,8 @@ test('it uses correct credential when multiple Facebook pages exist', function (
     ]);
 
     Http::fake([
-        '*/rating_A/comments*' => Http::response(['success' => true], 200),
-        '*/rating_B/comments*' => Http::response(['success' => true], 200),
+        '*/page_A/ratings*' => Http::response(['success' => true], 200),
+        '*/page_B/ratings*' => Http::response(['success' => true], 200),
     ]);
 
     // Publish
@@ -139,11 +139,11 @@ test('it uses correct credential when multiple Facebook pages exist', function (
 
     // Should use page_A credential, NOT page_B
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), 'rating_A/comments');
+        return str_contains($request->url(), 'page_A/ratings');
     });
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), 'page_B') || str_contains($request->url(), 'rating_B');
+        return str_contains($request->url(), 'page_B/ratings');
     });
 });
 
