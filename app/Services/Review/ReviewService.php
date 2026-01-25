@@ -73,9 +73,50 @@ class ReviewService
         return Review::query()->whereIn('location_id', $locationIds)->with(['location', 'response.user'])->find($reviewId);
     }
 
+    public function getStats(Tenant $tenant, ?Location $location = null): array
+    {
+        if ($location) {
+            $query = $location->reviews()->getQuery();
+        } else {
+            $locationIds = $tenant->locations()->pluck('id');
+            $query = Review::query()->whereIn('location_id', $locationIds);
+        }
+
+        $totalReviews = $query->count();
+        $averageRating = $totalReviews > 0 ? round((float) $query->avg('rating'), 1) : 0;
+
+        $ratingDistribution = [];
+        for ($i = 5; $i >= 1; $i--) {
+            $ratingDistribution[$i] = (clone $query)->where('rating', $i)->count();
+        }
+
+        $byPlatform = [];
+        $platforms = (clone $query)->distinct()->pluck('platform');
+        foreach ($platforms as $platform) {
+            $platformQuery = (clone $query)->where('platform', $platform);
+            $byPlatform[$platform] = [
+                'count' => $platformQuery->count(),
+                'average_rating' => round((float) $platformQuery->avg('rating'), 1),
+            ];
+        }
+
+        return [
+            'total_reviews' => $totalReviews,
+            'average_rating' => $averageRating,
+            'rating_distribution' => $ratingDistribution,
+            'by_platform' => $byPlatform,
+        ];
+    }
+
     public function createResponse(Review $review, User $user, array $data): ReviewResponse
     {
         return $review->response()->create(['user_id' => $user->id, 'content' => $data['content'], 'status' => $data['status'] ?? 'draft', 'ai_generated' => $data['ai_generated'] ?? false]);
+    }
+
+    public function updateResponse(ReviewResponse $response, array $data): ReviewResponse
+    {
+        $response->update($data);
+        return $response->fresh();
     }
 
     public function publishResponse(ReviewResponse $response): ReviewResponse
@@ -83,6 +124,7 @@ class ReviewService
         $review = $response->review;
         $location = $review->location;
 
+        // Google
         if ($review->platform === 'google' || $review->platform === PlatformCredential::PLATFORM_GOOGLE_MY_BUSINESS) {
             $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_GOOGLE_MY_BUSINESS);
             if ($credential) {
@@ -96,6 +138,7 @@ class ReviewService
             }
         }
 
+        // Facebook
         if ($review->platform === PlatformCredential::PLATFORM_FACEBOOK) {
             $credential = PlatformCredential::where('tenant_id', $location->tenant_id)->where('platform', PlatformCredential::PLATFORM_FACEBOOK)->where('external_id', $location->facebook_page_id)->first()
                 ?? PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
@@ -104,25 +147,63 @@ class ReviewService
             }
         }
 
+        // Instagram
+        if ($review->platform === PlatformCredential::PLATFORM_INSTAGRAM) {
+            $credential = PlatformCredential::where('tenant_id', $location->tenant_id)->where('platform', PlatformCredential::PLATFORM_FACEBOOK)->where('external_id', $location->facebook_page_id)->first()
+                ?? PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+            if ($credential && $credential->isValid()) {
+                if (!app(InstagramReviewService::class)->publishResponse($response, $credential)) throw new \Exception('Failed to publish response to Instagram');
+            }
+        }
+
+        // Google Play
+        if ($review->platform === PlatformCredential::PLATFORM_GOOGLE_PLAY) {
+            if (!app(GooglePlayStoreService::class)->replyToReview($review, $response->content)) throw new \Exception('Failed to publish response to Google Play Store');
+            return $response->fresh();
+        }
+
+        // YouTube
+        if ($review->platform === PlatformCredential::PLATFORM_YOUTUBE) {
+            $credential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_YOUTUBE);
+            if ($credential && $credential->isValid()) {
+                if (!app(YouTubeReviewService::class)->replyToReview($review, $response->content, $credential)) throw new \Exception('Failed to publish response to YouTube');
+                return $response->fresh();
+            }
+        }
+
         if (!$response->isPublished()) $response->publish();
         return $response->fresh();
     }
 
+    public function deleteResponse(ReviewResponse $response): void
+    {
+        $response->delete();
+    }
+
     public function syncReviewsForLocation(Location $location): array
     {
-        $counts = ['google' => 0, 'facebook' => 0, 'google_play' => 0, 'youtube' => 0];
+        $counts = ['google' => 0, 'facebook' => 0, 'instagram' => 0, 'google_play' => 0, 'youtube' => 0];
+        
+        // Google
         $gmbCredential = PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_GOOGLE_MY_BUSINESS);
         $accessToken = $gmbCredential ? app(\App\Services\Listing\GoogleMyBusinessService::class)->ensureValidToken($gmbCredential) : null;
 
         if ($accessToken) $counts['google'] = $this->syncGoogleReviewsViaApi($location, $gmbCredential, $accessToken);
         elseif ($location->hasGooglePlaceId()) $counts['google'] = $this->syncGoogleReviews($location);
 
+        // Facebook & Instagram (Both use Facebook Credential)
         if ($location->hasFacebookPageId()) {
-            $fbCred = PlatformCredential::where('tenant_id', $location->tenant_id)->where('platform', 'facebook')->where('external_id', $location->facebook_page_id)->first();
-            if ($fbCred && $fbCred->isValid()) $counts['facebook'] = app(FacebookReviewService::class)->syncFacebookReviews($location, $fbCred);
+            $fbCred = PlatformCredential::where('tenant_id', $location->tenant_id)->where('platform', 'facebook')->where('external_id', $location->facebook_page_id)->first()
+                ?? PlatformCredential::getForTenant($location->tenant, PlatformCredential::PLATFORM_FACEBOOK);
+            
+            if ($fbCred && $fbCred->isValid()) {
+                $counts['facebook'] = app(FacebookReviewService::class)->syncFacebookReviews($location, $fbCred);
+                $counts['instagram'] = app(InstagramReviewService::class)->syncInstagramReviews($location, $fbCred);
+            }
         }
 
         if ($location->hasGooglePlayPackageName()) $counts['google_play'] = app(GooglePlayStoreService::class)->syncReviews($location);
+        
         if ($location->hasYouTubeChannelId()) {
             $ytCred = PlatformCredential::where('tenant_id', $location->tenant_id)->where('platform', 'youtube')->where('is_active', true)->first();
             if ($ytCred && $ytCred->isValid()) $counts['youtube'] = app(YouTubeReviewService::class)->syncReviews($location, $ytCred);

@@ -14,6 +14,8 @@ class Listing extends Model
 
     public const PLATFORM_FACEBOOK = 'facebook';
 
+    public const PLATFORM_INSTAGRAM = 'instagram';
+
     public const PLATFORM_GOOGLE = 'google';
 
     public const PLATFORM_GOOGLE_MY_BUSINESS = 'google_my_business';
@@ -80,6 +82,11 @@ class Listing extends Model
     public function isFacebook(): bool
     {
         return $this->platform === self::PLATFORM_FACEBOOK;
+    }
+
+    public function isInstagram(): bool
+    {
+        return $this->platform === self::PLATFORM_INSTAGRAM;
     }
 
     public function isGoogle(): bool
