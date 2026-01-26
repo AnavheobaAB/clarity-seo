@@ -28,3 +28,5 @@ CLAUDE.md
 docs/platforms/
 /storage/app/private/*.json
 /storage/app/private/kimdeo-credentials.json
+*.html
+!resources/views/**/*.html
